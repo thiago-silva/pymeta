@@ -31,3 +31,10 @@ ASTParser = moduleFromGrammar(t, 'SomeGrammarName', OMetaBase, {})
 parser = ASTParser([ast])
 res, err = parser.apply("start")
 print "result: " + str(res)
+
+### formating parse error
+try:
+    parser = Grammar("1 + a")
+    ast, err =  parser.apply("start")
+except Exception as err:
+    print err.formatError(''.join(parser.input.data))
