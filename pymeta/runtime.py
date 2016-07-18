@@ -10,9 +10,14 @@ class ParseError(Exception):
 
 # The internal ParseError
 class _MaybeParseError(Exception):
+
     """
     ?Redo from start
     """
+    def __getitem__(self, idx):
+        if idx == 0 and self.args[idx] is None:
+            return 0
+        return self.args[idx]
 
     @property
     def position(self):
@@ -59,7 +64,7 @@ class _MaybeParseError(Exception):
         Return a pretty string containing error info about string parsing failure.
         """
         reason = self.formatReason()
-        if not isinstance(input, basestring):
+        if not isinstance(input, str):
             return ("Parse error at input %s: %s\n" % (input, reason))
         lines = input.split('\n')
         counter = 0
@@ -103,11 +108,12 @@ def joinErrors(errors):
     Return the error from the branch that matched the most of the input.
     """
     errors.sort(reverse=True, key=operator.itemgetter(0))
+    # errors.sort(reverse=True, key=lambda x: x.position)
     results = set()
-    pos = errors[0][0]
+    pos = errors[0].position
     for err in errors:
-        if pos == err[0]:
-            e = err[1]
+        if pos == err.position:
+            e = err.error
             if e is not None:
                 for item in e:
                         results.add(item)
@@ -129,7 +135,7 @@ class character(str):
         """
         raise TypeError("Characters are not iterable")
 
-class unicodeCharacter(unicode):
+class unicodeCharacter(str):
     """
     Type to distinguish characters from Unicode strings.
     """
@@ -151,7 +157,7 @@ class InputStream(object):
         """
         if isinstance(iterable, str):
             data = [character(c) for c in iterable]
-        elif isinstance(iterable, unicode):
+        elif isinstance(iterable, str):
             data = [unicodeCharacter(c) for c in iterable]
         else:
             data = list(iterable)
@@ -313,8 +319,8 @@ class OMetaBase(object):
         """
         try:
             if args:
-                if rule.func_code.co_argcount - 1 != len(args):
-                    idx=rule.func_code.co_argcount - 1
+                if rule.__code__.co_argcount - 1 != len(args):
+                    idx=rule.__code__.co_argcount - 1
                     _args=list(args)
                     for arg in reversed(args[idx:]):
                         self.input = ArgInput(arg, self.input)
@@ -406,8 +412,7 @@ class OMetaBase(object):
                 ans.append(v)
             except _MaybeParseError as e:
                 self.input = m
-                break
-        return ans, e
+                return ans, e
 
     def _or(self, fns):
         """
@@ -448,17 +453,19 @@ class OMetaBase(object):
         """
         Consume input until a non-whitespace character is reached.
         """
+        exc = []
         while True:
             try:
                 c, e = self.input.head()
             except EOFError as e:
+                exc = e
                 break
             t = self.input.tail()
             if c.isspace():
                 self.input = t
             else:
                 break
-        return True, e
+        return True, exc
     rule_spaces = eatWhitespace
 
 
@@ -624,7 +631,7 @@ class OMetaBase(object):
                     stack.append(delimiters[c])
                 elif len(stack) > 0 and c == stack[-1]:
                     stack.pop()
-                elif c in delimiters.values():
+                elif c in list(delimiters.values()):
                     raise _MaybeParseError(self.input.position,
                                            expected("Python expression"))
                 elif c in "\"'":

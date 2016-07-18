@@ -94,7 +94,7 @@ class OMetaTestCase(unittest.TestCase):
         Input matches can be made on literal integers.
         """
         g = self.compile("stuff = 17 0x1F -2 0177")
-        self.assertEqual(g.stuff([17, 0x1f, -2, 0177]), 0177)
+        self.assertEqual(g.stuff([17, 0x1f, -2, 0o177]), 0o177)
         self.assertRaises(_MaybeParseError, g.stuff, [1, 2, 3])
 
 
